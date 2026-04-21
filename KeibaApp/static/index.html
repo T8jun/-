@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>競馬予測アプリ</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #222535;
+      --accent: #7c6af7;
+      --accent2: #5eead4;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --border: #2d3148;
+      --win: #fbbf24;
+      --place: #94a3b8;
+      --danger: #f87171;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; }
+    header span { font-size: 1.6rem; }
+    .badge {
+      margin-left: auto;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.72rem;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-weight: 600;
+    }
+
+    main { max-width: 1100px; margin: 0 auto; padding: 32px 16px; }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+    button {
+      padding: 10px 22px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+      transition: opacity .15s, transform .1s;
+    }
+    button:active { transform: scale(.97); }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-success { background: #10b981; color: #fff; }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 14px;
+    }
+
+    /* 出走表 */
+    .entry-table-wrap { overflow-x: auto; margin-bottom: 32px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    thead th {
+      background: var(--surface2);
+      color: var(--muted);
+      font-weight: 600;
+      padding: 10px 12px;
+      text-align: left;
+      white-space: nowrap;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+    tbody tr:hover { background: var(--surface); }
+    tbody td { padding: 10px 12px; }
+    input[type="number"], input[type="text"], select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 0.85rem;
+      width: 100%;
+    }
+    input:focus, select:focus { outline: 2px solid var(--accent); }
+
+    /* 予測結果 */
+    #results { margin-top: 8px; }
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 10px;
+      display: grid;
+      grid-template-columns: 44px 44px 1fr auto;
+      align-items: center;
+      gap: 14px;
+      transition: border-color .15s;
+    }
+    .result-card:hover { border-color: var(--accent); }
+    .result-card.top1 { border-color: var(--win); background: #1f1c0e; }
+    .result-card.top2 { border-color: #c0c0c0; }
+    .result-card.top3 { border-color: #cd7f32; }
+
+    .mark { font-size: 1.5rem; text-align: center; }
+    .horse-num {
+      width: 36px; height: 36px;
+      background: var(--surface2);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+    .horse-info .name { font-weight: 700; font-size: 1rem; }
+    .horse-info .sub { color: var(--muted); font-size: 0.8rem; margin-top: 2px; }
+    .prob-block { text-align: right; }
+    .prob-block .prob { font-size: 1.6rem; font-weight: 200; color: var(--accent2); }
+    .prob-block .prob-label { color: var(--muted); font-size: 0.75rem; }
+
+    /* bar chart */
+    .bar-wrap { width: 180px; }
+    .bar-bg { background: var(--surface2); border-radius: 99px; height: 8px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .6s ease; }
+
+    /* toast */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .3s;
+    }
+    #toast.show { opacity: 1; }
+
+    .loader {
+      border: 3px solid var(--surface2);
+      border-top: 3px solid var(--accent);
+      border-radius: 50%;
+      width: 20px; height: 20px;
+      animation: spin .8s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <span>🏇</span>
+  <h1>競馬予測アプリ</h1>
+  <span class="badge">ML powered</span>
+</header>
+
+<main>
+  <div class="controls">
+    <button class="btn-secondary" id="btnSample">サンプルレースを読み込む</button>
+    <button class="btn-primary" id="btnPredict">予測する</button>
+    <button class="btn-success" id="btnRetrain">モデルを再学習</button>
+  </div>
+
+  <div class="section-title">出走表</div>
+  <div class="entry-table-wrap">
+    <table id="entryTable">
+      <thead>
+        <tr>
+          <th>馬番</th><th>馬名</th><th>騎手</th><th>年齢</th>
+          <th>馬体重</th><th>増減</th><th>過去勝率</th><th>複勝率</th>
+          <th>単勝オッズ</th><th>距離(m)</th><th>馬場</th><th>コース</th>
+        </tr>
+      </thead>
+      <tbody id="entryBody"></tbody>
+    </table>
+  </div>
+
+  <div class="section-title" id="resultTitle" style="display:none">予測結果</div>
+  <div id="results"></div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+const JOCKEYS = ["武豊","川田将雅","福永祐一","横山武史","松山弘平","戸崎圭太","池添謙一","岩田康誠","田辺裕信","ルメール"];
+const SURFACES = ["芝","ダート"];
+const CONDITIONS = ["良","稍重","重","不良"];
+
+let entries = [];
+
+function showToast(msg, duration = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function setLoading(btn, loading) {
+  btn.disabled = loading;
+  if (loading) {
+    btn._orig = btn.innerHTML;
+    btn.innerHTML = '<span class="loader"></span>処理中…';
+  } else {
+    btn.innerHTML = btn._orig;
+  }
+}
+
+function renderTable() {
+  const tbody = document.getElementById('entryBody');
+  tbody.innerHTML = '';
+  entries.forEach((e, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${e.horse_number}</td>
+      <td><input type="text" value="${e.horse_name}" oninput="entries[${i}].horse_name=this.value" style="width:110px"/></td>
+      <td>
+        <select onchange="entries[${i}].jockey=this.value">
+          ${JOCKEYS.map(j => `<option value="${j}" ${j===e.jockey?'selected':''}>${j}</option>`).join('')}
+        </select>
+      </td>
+      <td><input type="number" value="${e.age}" min="2" max="10" oninput="entries[${i}].age=+this.value" style="width:52px"/></td>
+      <td><input type="number" value="${e.weight}" min="400" max="600" oninput="entries[${i}].weight=+this.value" style="width:62px"/></td>
+      <td><input type="number" value="${e.weight_change}" min="-20" max="20" oninput="entries[${i}].weight_change=+this.value" style="width:52px"/></td>
+      <td><input type="number" value="${e.past_win_rate}" min="0" max="1" step="0.01" oninput="entries[${i}].past_win_rate=+this.value" style="width:60px"/></td>
+      <td><input type="number" value="${e.past_place_rate}" min="0" max="1" step="0.01" oninput="entries[${i}].past_place_rate=+this.value" style="width:60px"/></td>
+      <td><input type="number" value="${e.odds}" min="1" max="999" step="0.1" oninput="entries[${i}].odds=+this.value" style="width:62px"/></td>
+      <td>${e.distance}</td>
+      <td>
+        <select onchange="entries[${i}].track_condition=this.value">
+          ${CONDITIONS.map(c => `<option value="${c}" ${c===e.track_condition?'selected':''}>${c}</option>`).join('')}
+        </select>
+      </td>
+      <td>
+        <select onchange="entries[${i}].surface=this.value">
+          ${SURFACES.map(s => `<option value="${s}" ${s===e.surface?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderResults(results) {
+  document.getElementById('resultTitle').style.display = '';
+  const container = document.getElementById('results');
+  container.innerHTML = '';
+  results.forEach((r, idx) => {
+    const cls = idx === 0 ? 'top1' : idx === 1 ? 'top2' : idx === 2 ? 'top3' : '';
+    const card = document.createElement('div');
+    card.className = `result-card ${cls}`;
+    card.innerHTML = `
+      <div class="mark">${r.mark || ''}</div>
+      <div class="horse-num">${r.horse_number}</div>
+      <div class="horse-info">
+        <div class="name">${r.horse_name || '馬 ' + r.horse_number}</div>
+        <div class="sub">${r.jockey} / ${r.surface}${r.distance}m / ${r.track_condition} / 単勝${r.odds}倍</div>
+        <div style="margin-top:8px">
+          <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(r.win_prob * 3, 100)}%"></div></div>
+        </div>
+      </div>
+      <div class="prob-block">
+        <div class="prob">${r.win_prob}%</div>
+        <div class="prob-label">予測勝率</div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+document.getElementById('btnSample').addEventListener('click', async () => {
+  const btn = document.getElementById('btnSample');
+  setLoading(btn, true);
+  try {
+    const res = await fetch('/api/sample-race');
+    const data = await res.json();
+    entries = data.entries;
+    renderTable();
+    document.getElementById('results').innerHTML = '';
+    document.getElementById('resultTitle').style.display = 'none';
+    showToast('サンプルレースを読み込みました');
+  } catch (e) {
+    showToast('読み込みエラー: ' + e.message);
+  } finally {
+    setLoading(btn, false);
+  }
+});
+
+document.getElementById('btnPredict').addEventListener('click', async () => {
+  if (entries.length === 0) { showToast('先にサンプルレースを読み込んでください'); return; }
+  const btn = document.getElementById('btnPredict');
+  setLoading(btn, true);
+  try {
+    const res = await fetch('/api/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entries }),
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail); }
+    const data = await res.json();
+    renderResults(data.results);
+    showToast('予測完了！');
+  } catch (e) {
+    showToast('予測エラー: ' + e.message);
+  } finally {
+    setLoading(btn, false);
+  }
+});
+
+document.getElementById('btnRetrain').addEventListener('click', async () => {
+  const btn = document.getElementById('btnRetrain');
+  setLoading(btn, true);
+  try {
+    const res = await fetch('/api/train', { method: 'POST' });
+    const data = await res.json();
+    showToast(`再学習完了！勝馬的中率: ${(data.metrics.win_accuracy * 100).toFixed(1)}%`, 3500);
+  } catch (e) {
+    showToast('学習エラー: ' + e.message);
+  } finally {
+    setLoading(btn, false);
+  }
+});
+
+// 初期表示: サンプルデータを自動読み込み
+window.addEventListener('load', () => {
+  document.getElementById('btnSample').click();
+});
+</script>
+</body>
+</html>
